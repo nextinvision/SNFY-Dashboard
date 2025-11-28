@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Feed } from "@/lib/types/feed";
 import type { Industry } from "@/lib/types/industry";
 import { Input } from "@/components/ui/input";
@@ -8,17 +9,22 @@ import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { IndustryMultiSelect } from "./IndustryMultiSelect";
 import { FileUpload } from "./FileUpload";
+import { feedsApi } from "@/lib/api/feeds";
+import { uploadApi } from "@/lib/api/upload";
+import { ApiClientError } from "@/lib/api/client";
 
 interface FeedFormProps {
   mode: "create" | "edit";
   initialValues?: Partial<Feed>;
+  feedId?: string;
 }
 
-export function FeedForm({ mode, initialValues }: FeedFormProps) {
+export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
+  const router = useRouter();
   const [name, setName] = useState(initialValues?.name ?? "");
   const [url, setUrl] = useState(initialValues?.url ?? "");
   const [logoUrl, setLogoUrl] = useState(initialValues?.logo ?? "");
-  const [logoFile, setLogoFile] = useState<string | undefined>(undefined);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [industries, setIndustries] = useState<Industry[]>(
     (initialValues?.industries as Industry[]) ?? [],
   );
@@ -30,26 +36,57 @@ export function FeedForm({ mode, initialValues }: FeedFormProps) {
     initialValues?.status !== "disabled",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
-    const payload = {
-      name,
-      url,
-      logo: logoFile ?? logoUrl,
-      industries,
-      autoUpdate,
-      fullText,
-      enabled,
-    };
+    try {
+      // Upload logo file if provided
+      let finalLogoUrl = logoUrl;
+      if (logoFile) {
+        const uploadResponse = await uploadApi.uploadLogo(logoFile);
+        finalLogoUrl = uploadResponse.logoUrl;
+      }
 
-    // Placeholder for API integration.
-    await new Promise((resolve) => setTimeout(resolve, 900));
+      // Prepare payload - industries should be array of IDs
+      const industryIds = industries.map((ind) => ind.id);
 
-    console.info(`${mode === "create" ? "Created" : "Updated"} feed`, payload);
-    setIsSubmitting(false);
+      if (mode === "create") {
+        await feedsApi.create({
+          name,
+          url,
+          logoUrl: finalLogoUrl || undefined,
+          industries: industryIds,
+          autoUpdate,
+          fullText,
+          enabled,
+        });
+      } else if (feedId) {
+        await feedsApi.update(feedId, {
+          name,
+          url,
+          logoUrl: finalLogoUrl || undefined,
+          industries: industryIds,
+          autoUpdate,
+          fullText,
+          enabled,
+        });
+      }
+
+      // Redirect to feeds list
+      router.push("/dashboard/feeds");
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || `Failed to ${mode === "create" ? "create" : "update"} feed`);
+      } else {
+        setError(`An unexpected error occurred. Please try again.`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,7 +113,11 @@ export function FeedForm({ mode, initialValues }: FeedFormProps) {
         value={logoUrl}
         onChange={(event) => setLogoUrl(event.target.value)}
       />
-      <FileUpload label="Upload Logo" value={logoFile} onChange={setLogoFile} />
+      <FileUpload
+        label="Upload Logo"
+        value={logoFile ? URL.createObjectURL(logoFile) : logoUrl || undefined}
+        onChange={(file) => setLogoFile(file)}
+      />
       <IndustryMultiSelect selected={industries} onChange={setIndustries} />
       <div className="grid gap-4 md:grid-cols-2">
         <Toggle
@@ -95,6 +136,11 @@ export function FeedForm({ mode, initialValues }: FeedFormProps) {
           onChange={setEnabled}
         />
       </div>
+      {error && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
       <div className="flex gap-3">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting
@@ -103,7 +149,11 @@ export function FeedForm({ mode, initialValues }: FeedFormProps) {
               ? "Save feed"
               : "Update feed"}
         </Button>
-        <Button type="button" variant="ghost">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => router.push("/dashboard/feeds")}
+        >
           Cancel
         </Button>
       </div>

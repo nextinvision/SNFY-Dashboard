@@ -7,7 +7,7 @@ export interface Feed {
   name: string;
   url: string;
   logo?: string;
-  industries: Industry[];
+  industries: Industry[]; // Array of Industry objects with id and name
   autoUpdate: boolean;
   fullText: boolean;
   status: FeedStatus;

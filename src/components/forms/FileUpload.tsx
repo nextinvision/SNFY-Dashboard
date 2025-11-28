@@ -4,8 +4,8 @@ import { useRef } from "react";
 
 interface FileUploadProps {
   label: string;
-  value?: string;
-  onChange: (value: string | undefined) => void;
+  value?: string; // Preview URL
+  onChange: (file: File | null) => void;
 }
 
 export function FileUpload({ label, value, onChange }: FileUploadProps) {
@@ -13,13 +13,12 @@ export function FileUpload({ label, value, onChange }: FileUploadProps) {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      onChange(null);
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      onChange(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    onChange(file);
   };
 
   return (

@@ -1,46 +1,33 @@
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 import { FeedTable } from "@/components/feeds/FeedTable";
-import { mockFeeds } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
+
+// Plus icon for add button
+const PlusIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
 
 export default function FeedsPage() {
-  const enabledFeeds = mockFeeds.filter((feed) => feed.status === "enabled").length;
-  const disabledFeeds = mockFeeds.length - enabledFeeds;
-
   return (
-    <DashboardShell
-      title="Feeds"
-      description="Manage every RSS/news source powering StartupNews.fyi"
-      actions={
-        <Link
-          href="/dashboard/feeds/add"
-          className={cn(
-            "inline-flex items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-900",
-          )}
-        >
-          Add feed
-        </Link>
-      }
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card title="Total feeds">
-          <p className="text-3xl font-semibold">{mockFeeds.length}</p>
-        </Card>
-        <Card title="Enabled">
-          <p className="text-3xl font-semibold text-emerald-600">
-            {enabledFeeds}
-          </p>
-        </Card>
-        <Card title="Disabled">
-          <p className="text-3xl font-semibold text-orange-600">
-            {disabledFeeds}
-          </p>
-        </Card>
-      </div>
-      <FeedTable feeds={mockFeeds} />
-    </DashboardShell>
+    <div className="mx-auto max-w-7xl">
+      <DashboardShell
+        title="Feeds"
+        description="Manage every RSS/news source powering StartupNews.fyi"
+        actions={
+          <Link href="/dashboard/feeds/add">
+            <Button variant="primary" className="flex items-center gap-2">
+              <PlusIcon className="h-4 w-4" />
+              <span>Add Feed</span>
+            </Button>
+          </Link>
+        }
+      >
+        <FeedTable />
+      </DashboardShell>
+    </div>
   );
 }
 
