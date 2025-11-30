@@ -30,6 +30,7 @@ export function FeedTable({ initialFeeds = [], initialTotal = 0 }: FeedTableProp
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
 
   const perPage = 10;
 
@@ -107,6 +108,44 @@ export function FeedTable({ initialFeeds = [], initialTotal = 0 }: FeedTableProp
 
   const handleEdit = (feedId: string) => {
     router.push(`/dashboard/feeds/${feedId}`);
+  };
+
+  const handleRefresh = async (feed: Feed) => {
+    setRefreshingIds((prev) => new Set(prev).add(feed.id));
+    setError(null);
+
+    try {
+      const result = await feedsApi.refresh(feed.id);
+      
+      if (result.success) {
+        setError(null);
+        // Refresh the feed list to update lastUpdated timestamp
+        const response = await feedsApi.list({
+          page,
+          limit: perPage,
+          search: search || undefined,
+          sortBy: sortOrder,
+        });
+        setFeeds(response.data);
+        setTotal(response.total);
+      } else {
+        setError(
+          result.error || `Failed to refresh feed: ${result.articlesCreated} articles created, ${result.articlesSkipped} skipped`
+        );
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message || "Failed to refresh feed");
+      } else {
+        setError("An unexpected error occurred");
+      }
+    } finally {
+      setRefreshingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(feed.id);
+        return next;
+      });
+    }
   };
 
   return (
@@ -249,6 +288,30 @@ export function FeedTable({ initialFeeds = [], initialTotal = 0 }: FeedTableProp
                     </td>
                     <td className="whitespace-nowrap px-4 py-4">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push(`/dashboard/feeds/${feed.id}/articles`)}
+                          className="text-xs sm:text-sm"
+                          title="View articles"
+                        >
+                          Articles
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleRefresh(feed)}
+                          disabled={refreshingIds.has(feed.id)}
+                          className="text-xs sm:text-sm"
+                          title="Refresh feed"
+                        >
+                          {refreshingIds.has(feed.id) ? (
+                            <span className="flex items-center gap-1">
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900"></span>
+                              Refreshing...
+                            </span>
+                          ) : (
+                            "Refresh"
+                          )}
+                        </Button>
                         <Button
                           variant="secondary"
                           onClick={() => handleEdit(feed.id)}

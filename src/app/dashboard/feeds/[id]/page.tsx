@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { FeedForm } from "@/components/forms/FeedForm";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { feedsApi } from "@/lib/api/feeds";
 import type { Feed } from "@/lib/types/feed";
 import { ApiClientError } from "@/lib/api/client";
@@ -65,6 +67,11 @@ export default function EditFeedPage({ params }: EditFeedPageProps) {
     <DashboardShell
       title={`Edit feed: ${feed.name}`}
       description="Update feed metadata, industry tags, and toggles."
+      actions={
+        <Link href={`/dashboard/feeds/${feed.id}/articles`}>
+          <Button variant="secondary">View Articles</Button>
+        </Link>
+      }
     >
       <Card>
         <FeedForm mode="edit" initialValues={feed} feedId={feed.id} />

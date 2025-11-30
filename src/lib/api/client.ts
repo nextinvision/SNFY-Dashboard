@@ -26,26 +26,52 @@ export class ApiClientError extends Error {
 class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
+  private csrfTokenPromise: Promise<void> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.loadCsrfToken();
+    // Don't load CSRF token during module initialization (build time)
+    // Only load when actually needed (client-side)
   }
 
   private async loadCsrfToken(): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/csrf-token`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        this.csrfToken = data.csrfToken || null;
-      }
-    } catch (error) {
-      // CSRF token fetch failed, continue without it
-      console.warn('Failed to load CSRF token:', error);
+    // Skip CSRF token loading during SSR/build time
+    if (typeof window === 'undefined') {
+      return;
     }
+
+    // If already loading, return the existing promise
+    if (this.csrfTokenPromise) {
+      return this.csrfTokenPromise;
+    }
+
+    // If already loaded, skip
+    if (this.csrfToken) {
+      return;
+    }
+
+    this.csrfTokenPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/auth/csrf-token`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          this.csrfToken = data.csrfToken || null;
+        }
+      } catch (error) {
+        // CSRF token fetch failed, continue without it
+        // Only log in development to avoid build-time noise
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to load CSRF token:', error);
+        }
+      } finally {
+        this.csrfTokenPromise = null;
+      }
+    })();
+
+    return this.csrfTokenPromise;
   }
 
   private getAuthToken(): string | null {
@@ -125,6 +151,9 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string, includeAuth = true): Promise<T> {
+    // Load CSRF token if needed (client-side only)
+    await this.loadCsrfToken();
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(includeAuth),
@@ -135,6 +164,9 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: unknown, includeAuth = true): Promise<T> {
+    // Load CSRF token if needed (client-side only)
+    await this.loadCsrfToken();
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
       headers: this.getHeaders(includeAuth),
@@ -146,6 +178,9 @@ class ApiClient {
   }
 
   async patch<T>(endpoint: string, data?: unknown, includeAuth = true): Promise<T> {
+    // Load CSRF token if needed (client-side only)
+    await this.loadCsrfToken();
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'PATCH',
       headers: this.getHeaders(includeAuth),
@@ -157,6 +192,9 @@ class ApiClient {
   }
 
   async delete<T>(endpoint: string, includeAuth = true): Promise<T> {
+    // Load CSRF token if needed (client-side only)
+    await this.loadCsrfToken();
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'DELETE',
       headers: this.getHeaders(includeAuth),
@@ -167,6 +205,9 @@ class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: File, includeAuth = true): Promise<T> {
+    // Load CSRF token if needed (client-side only)
+    await this.loadCsrfToken();
+
     const formData = new FormData();
     formData.append('file', file);
 
@@ -206,7 +247,10 @@ class ApiClient {
     }
   }
 
-  refreshCsrfToken(): Promise<void> {
+  async refreshCsrfToken(): Promise<void> {
+    // Reset token to force reload
+    this.csrfToken = null;
+    this.csrfTokenPromise = null;
     return this.loadCsrfToken();
   }
 }

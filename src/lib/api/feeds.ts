@@ -36,6 +36,14 @@ export interface FeedListResponse {
   limit: number;
 }
 
+export interface RefreshFeedResponse {
+  success: boolean;
+  articlesProcessed: number;
+  articlesCreated: number;
+  articlesSkipped: number;
+  error?: string;
+}
+
 // Transform backend feed format to frontend format
 function transformFeed(backendFeed: any): Feed {
   // Handle nested industry structure from backend
@@ -114,6 +122,36 @@ export const feedsApi = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/feeds/${id}`);
+  },
+
+  async refresh(id: string): Promise<RefreshFeedResponse> {
+    const response = await apiClient.post<RefreshFeedResponse>(
+      `/feeds/${id}/refresh`,
+    );
+    return response;
+  },
+
+  async bulkCreate(
+    feeds: Array<{
+      name: string;
+      url: string;
+      logoUrl?: string;
+      industries: string[];
+      autoUpdate?: boolean;
+      fullText?: boolean;
+      enabled?: boolean;
+    }>,
+  ): Promise<{
+    success: boolean;
+    created: number;
+    failed: number;
+    results: {
+      created: any[];
+      failed: Array<{ feed: any; error: string }>;
+    };
+  }> {
+    const response = await apiClient.post<any>('/feeds/bulk', { feeds });
+    return response;
   },
 };
 
