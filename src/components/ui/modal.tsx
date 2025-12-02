@@ -10,6 +10,7 @@ interface ModalProps {
   open: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  isLoading?: boolean;
 }
 
 export function Modal({
@@ -20,6 +21,7 @@ export function Modal({
   open,
   onConfirm,
   onClose,
+  isLoading = false,
 }: ModalProps) {
   if (!open) {
     return null;
@@ -35,10 +37,10 @@ export function Modal({
           )}
         </div>
         <div className="flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
             {cancelLabel}
           </Button>
-          <Button variant="destructive" onClick={onConfirm}>
+          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
             {confirmLabel}
           </Button>
         </div>

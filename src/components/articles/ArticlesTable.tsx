@@ -46,7 +46,7 @@ export function ArticlesTable({
           sortBy: sortOrder,
         });
         setArticles(response.data);
-        setTotal(response.total);
+        setTotal(response.pagination.total);
       } catch (err) {
         if (err instanceof ApiClientError) {
           setError(err.message || 'Failed to load articles');

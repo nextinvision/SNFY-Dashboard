@@ -107,8 +107,20 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
         {/* Footer */}
         {isOpen && (
-          <div className="border-t border-zinc-200 px-6 py-4">
+          <div className="border-t border-zinc-200 px-6 py-4 space-y-2">
             <p className="text-xs text-zinc-400">IP restricted access</p>
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/docs`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors flex items-center gap-1"
+              title="Open API Documentation (Swagger)"
+            >
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              API Docs
+            </a>
           </div>
         )}
       </aside>

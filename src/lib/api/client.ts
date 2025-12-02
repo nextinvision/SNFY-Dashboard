@@ -4,6 +4,7 @@
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_VERSION = '/api/v1';
 
 export interface ApiError {
   message: string;
@@ -52,7 +53,7 @@ class ApiClient {
 
     this.csrfTokenPromise = (async () => {
       try {
-        const response = await fetch(`${this.baseUrl}/auth/csrf-token`, {
+        const response = await fetch(`${this.baseUrl}${API_VERSION}/auth/csrf-token`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -103,12 +104,27 @@ class ApiClient {
       let errorData: ApiError;
       try {
         const errorResponse = await response.json();
-        // Backend wraps errors in { success: false, message, statusCode, ... }
-        errorData = {
-          message: errorResponse.message || response.statusText || 'An error occurred',
-          statusCode: errorResponse.statusCode || response.status,
-          error: errorResponse.error,
-        };
+        // REST-compliant error format: { error: { code, message, details? } }
+        if (
+          errorResponse &&
+          typeof errorResponse === 'object' &&
+          'error' in errorResponse &&
+          typeof errorResponse.error === 'object'
+        ) {
+          const errorObj = errorResponse.error as { code?: string; message?: string; details?: unknown };
+          errorData = {
+            message: errorObj.message || response.statusText || 'An error occurred',
+            statusCode: response.status,
+            error: errorObj.code || errorObj.details as string,
+          };
+        } else {
+          // Fallback for non-standard error formats
+          errorData = {
+            message: (errorResponse as { message?: string })?.message || response.statusText || 'An error occurred',
+            statusCode: (errorResponse as { statusCode?: number })?.statusCode || response.status,
+            error: (errorResponse as { error?: string })?.error,
+          };
+        }
       } catch {
         errorData = {
           message: response.statusText || 'An error occurred',
@@ -132,21 +148,42 @@ class ApiClient {
       );
     }
 
-    // Handle empty responses
+    // Handle 204 No Content (DELETE endpoints) - no body to parse
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    // Handle empty responses or non-JSON content
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       return {} as T;
     }
 
-    const jsonResponse = await response.json();
-    
-    // Backend wraps all successful responses in { success: true, data: {...}, ... }
-    // Unwrap the data field to get the actual response
-    if (jsonResponse && typeof jsonResponse === 'object' && 'data' in jsonResponse && jsonResponse.success === true) {
-      return jsonResponse.data as T;
+    // Check if response has content before parsing
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0') {
+      return {} as T;
     }
 
-    // If response is not wrapped (e.g., CSRF token endpoint uses res.json() directly), return as-is
+    let jsonResponse: unknown;
+    try {
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        return {} as T;
+      }
+      jsonResponse = JSON.parse(text);
+    } catch (parseError) {
+      // If JSON parsing fails, log error in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to parse JSON response:', parseError);
+      }
+      return {} as T;
+    }
+    
+    // REST-compliant: Backend returns resources directly (no wrapper)
+    // Paginated responses: { data: [...], pagination: {...} }
+    // Single resources: Direct resource object
+    // Return response as-is
     return jsonResponse as T;
   }
 
@@ -154,7 +191,7 @@ class ApiClient {
     // Load CSRF token if needed (client-side only)
     await this.loadCsrfToken();
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${API_VERSION}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(includeAuth),
       credentials: 'include',
@@ -167,7 +204,7 @@ class ApiClient {
     // Load CSRF token if needed (client-side only)
     await this.loadCsrfToken();
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${API_VERSION}${endpoint}`, {
       method: 'POST',
       headers: this.getHeaders(includeAuth),
       body: data ? JSON.stringify(data) : undefined,
@@ -181,7 +218,7 @@ class ApiClient {
     // Load CSRF token if needed (client-side only)
     await this.loadCsrfToken();
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${API_VERSION}${endpoint}`, {
       method: 'PATCH',
       headers: this.getHeaders(includeAuth),
       body: data ? JSON.stringify(data) : undefined,
@@ -195,7 +232,7 @@ class ApiClient {
     // Load CSRF token if needed (client-side only)
     await this.loadCsrfToken();
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${API_VERSION}${endpoint}`, {
       method: 'DELETE',
       headers: this.getHeaders(includeAuth),
       credentials: 'include',
@@ -224,7 +261,7 @@ class ApiClient {
       headers['X-CSRF-Token'] = this.csrfToken;
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${API_VERSION}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData,

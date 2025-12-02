@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from './client';
-import type { User } from '../types/user';
+import type { User, UserRole } from '../types/user';
 
 export interface UserListQuery {
   page?: number;
@@ -11,11 +11,18 @@ export interface UserListQuery {
   search?: string;
 }
 
-export interface UserListResponse {
-  data: User[];
+export interface PaginationMeta {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface UserListResponse {
+  data: User[];
+  pagination: PaginationMeta;
 }
 
 // Transform backend user format to frontend format
@@ -31,6 +38,13 @@ function transformUser(backendUser: any): User {
   };
 }
 
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role?: UserRole;
+}
+
 export const usersApi = {
   async list(query: UserListQuery = {}): Promise<UserListResponse> {
     const params = new URLSearchParams();
@@ -38,14 +52,24 @@ export const usersApi = {
     if (query.limit) params.append('limit', query.limit.toString());
     if (query.search) params.append('search', query.search);
 
-    const response = await apiClient.get<{ data: any[]; total: number; page: number; limit: number }>(
+    // REST-compliant response: { data: [...], pagination: {...} }
+    const response = await apiClient.get<{ data: any[]; pagination: PaginationMeta }>(
       `/users?${params.toString()}`,
     );
 
     return {
-      ...response,
       data: response.data.map(transformUser),
+      pagination: response.pagination,
     };
+  },
+
+  async create(data: CreateUserRequest): Promise<User> {
+    const response = await apiClient.post<any>('/users', data);
+    return transformUser(response);
+  },
+
+  async delete(id: string): Promise<void> {
+    await apiClient.delete(`/users/${id}`);
   },
 };
 

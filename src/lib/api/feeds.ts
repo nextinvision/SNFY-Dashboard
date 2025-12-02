@@ -29,11 +29,18 @@ export interface FeedListQuery {
   sortBy?: 'newest' | 'oldest';
 }
 
-export interface FeedListResponse {
-  data: Feed[];
+export interface PaginationMeta {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface FeedListResponse {
+  data: Feed[];
+  pagination: PaginationMeta;
 }
 
 export interface RefreshFeedResponse {
@@ -90,13 +97,14 @@ export const feedsApi = {
       params.append('sortBy', query.sortBy);
     }
 
-    const response = await apiClient.get<{ data: any[]; total: number; page: number; limit: number }>(
+    // REST-compliant response: { data: [...], pagination: {...} }
+    const response = await apiClient.get<{ data: any[]; pagination: PaginationMeta }>(
       `/feeds?${params.toString()}`,
     );
 
     return {
-      ...response,
       data: response.data.map(transformFeed),
+      pagination: response.pagination,
     };
   },
 

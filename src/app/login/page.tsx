@@ -9,16 +9,16 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // If already authenticated, redirect to dashboard
-    if (authApi.isAuthenticated()) {
-      router.push("/dashboard/feeds");
-    }
-  }, [router]);
+    // Check authentication with a small delay to avoid race conditions
+    const timer = setTimeout(() => {
+      if (authApi.isAuthenticated()) {
+        // Use replace to avoid adding to history
+        router.replace("/dashboard/feeds");
+      }
+    }, 50);
 
-  // Don't render login form if already authenticated (will redirect)
-  if (authApi.isAuthenticated()) {
-    return null;
-  }
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">

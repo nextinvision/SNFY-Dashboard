@@ -1,14 +1,23 @@
 'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { authApi } from "@/lib/api/auth";
-import { ApiClientError } from "@/lib/api/client";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { usersApi } from '@/lib/api/users';
+import { ApiClientError } from '@/lib/api/client';
+import type { UserRole } from '@/lib/types/user';
 
-export function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+interface UserFormProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export function UserForm({ onSuccess, onCancel }: UserFormProps) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('author');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,50 +28,29 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const response = await authApi.login({ email, password });
-      
-      // Verify response structure
-      if (!response || !response.accessToken) {
-        setError("Invalid response from server. Please try again.");
-        return;
-      }
+      await usersApi.create({
+        name,
+        email,
+        password,
+        role,
+      });
 
-      // Verify token was stored
-      if (typeof window !== 'undefined') {
-        const storedToken = localStorage.getItem('auth_token');
-        if (!storedToken || storedToken !== response.accessToken) {
-          setError("Failed to store authentication token. Please try again.");
-          return;
-        }
-      }
-      
-      // Verify authentication state
-      if (!authApi.isAuthenticated()) {
-        setError("Authentication verification failed. Please try again.");
-        return;
-      }
+      // Reset form
+      setName('');
+      setEmail('');
+      setPassword('');
+      setRole('author');
+      setShowPassword(false);
 
-      // Force a small delay to ensure all state is updated
-      // Then use window.location for more reliable navigation
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Double-check auth before redirecting
-      if (!authApi.isAuthenticated()) {
-        setError("Authentication state lost. Please try again.");
-        return;
+      // Call success callback
+      if (onSuccess) {
+        onSuccess();
       }
-
-      // Use window.location for more reliable navigation after login
-      // This ensures a full page reload and clears any stale state
-      window.location.href = "/dashboard/feeds";
     } catch (err) {
-      console.error('Login error:', err);
       if (err instanceof ApiClientError) {
-        setError(err.message || "Invalid email or password");
-      } else if (err instanceof Error) {
-        setError(err.message || "An error occurred during login");
+        setError(err.message || 'Failed to create user');
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setIsSubmitting(false);
@@ -72,20 +60,31 @@ export function LoginForm() {
   return (
     <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
       <Input
+        label="Name"
+        type="text"
+        placeholder="Enter user name"
+        required
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+
+      <Input
         label="Email"
         type="email"
-        placeholder="admin@startupnews.fyi"
+        placeholder="user@example.com"
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
       />
+
       <div className="flex w-full flex-col gap-1">
         <label className="text-sm text-zinc-700">Password</label>
         <div className="relative">
           <input
-            type={showPassword ? "text" : "password"}
-            placeholder="••••••••"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Enter password (min 8 characters)"
             required
+            minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
@@ -94,7 +93,7 @@ export function LoginForm() {
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-zinc-500 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-black/10 rounded"
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? (
               <svg
@@ -132,18 +131,35 @@ export function LoginForm() {
             )}
           </button>
         </div>
+        <p className="text-xs text-zinc-500">Password must be at least 8 characters long</p>
       </div>
+
+      <Select
+        label="Role"
+        value={role}
+        onChange={(value) => setRole(value as UserRole)}
+        options={[
+          { value: 'author', label: 'Author' },
+          { value: 'administrator', label: 'Administrator' },
+        ]}
+      />
+
       {error && (
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
           {error}
         </div>
       )}
-      <Button type="submit" fullWidth disabled={isSubmitting}>
-        {isSubmitting ? "Signing in..." : "Sign in"}
-      </Button>
-      <p className="text-center text-sm text-zinc-500">
-        Access restricted to SNFYI IP addresses.
-      </p>
+
+      <div className="flex gap-3">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create User'}
+        </Button>
+        {onCancel && (
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

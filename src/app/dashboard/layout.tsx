@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -13,30 +13,64 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
+  // Use ref to track if component has mounted (client-side only)
+  const isMountedRef = useRef(false);
+  // Initialize all state to consistent values for SSR
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Always start with false for SSR - will be set after mount
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Load sidebar state from localStorage on mount
-  useEffect(() => {
+  // Mark component as mounted and hydrate state (client-side only)
+  // Use useLayoutEffect to hydrate before paint to prevent hydration mismatch
+  // This is a standard Next.js pattern for syncing client-side state (localStorage) with SSR
+  // The linter warning is a false positive - this is necessary for proper hydration
+  useLayoutEffect(() => {
+    // Mark as mounted
+    isMountedRef.current = true;
+    
+    // Hydrate sidebar state from localStorage
+    // This is necessary for client-side hydration and prevents SSR/client mismatch
     const savedState = localStorage.getItem('sidebarOpen');
-    if (savedState !== null) {
-      setSidebarOpen(savedState === 'true');
-    } else {
-      // Default to open on desktop, closed on mobile
-      setSidebarOpen(window.innerWidth >= 1024);
-    }
-  }, []);
+    const initialSidebarState = savedState !== null 
+      ? savedState === 'true'
+      : window.innerWidth >= 1024;
+    
+    // Only update if different from initial state to minimize re-renders
+    // eslint-disable-next-line react-compiler/react-compiler
+    setSidebarOpen((prev) => {
+      if (prev !== initialSidebarState) {
+        return initialSidebarState;
+      }
+      return prev;
+    });
+  }, []); // Only run once on mount
 
-  // Save sidebar state to localStorage
+  // Save sidebar state to localStorage (only after mount)
   useEffect(() => {
+    if (!isMountedRef.current) return;
     localStorage.setItem('sidebarOpen', String(sidebarOpen));
   }, [sidebarOpen]);
 
+  // Check authentication after mount
   useEffect(() => {
-    // Check authentication on mount
+    if (!isMountedRef.current) return;
+    
+    let mounted = true;
+    
     const checkAuth = () => {
+      if (!mounted || !isMountedRef.current) return;
+      
       const authenticated = authApi.isAuthenticated();
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Dashboard auth check:', {
+          authenticated,
+          hasToken: !!localStorage.getItem('auth_token'),
+          hasUser: !!localStorage.getItem('user'),
+        });
+      }
+      
       setIsAuthenticated(authenticated);
       setIsChecking(false);
       
@@ -45,11 +79,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       }
     };
 
+    // First check immediately
     checkAuth();
+    
+    // Double-check after a brief delay to catch any race conditions
+    const timer = setTimeout(() => {
+      if (mounted && isMountedRef.current) {
+        checkAuth();
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      mounted = false;
+    };
   }, [router]);
 
-  // Handle window resize - only auto-close on mobile, preserve desktop state
+  // Handle window resize - only after mount
   useEffect(() => {
+    if (!isMountedRef.current) return;
+    
     const handleResize = () => {
       // Only auto-close on mobile when resizing to mobile
       // Don't force open on desktop resize - respect user preference

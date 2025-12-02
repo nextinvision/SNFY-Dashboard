@@ -6,12 +6,13 @@ export interface Article {
   link: string;
   publishedAt?: string;
   author?: string;
-  categories?: string;
+  categories: string[];
   imageUrl?: string;
   content?: string;
   guid?: string;
   createdAt: string;
   updatedAt: string;
+  feedName?: string; // For display in article lists
 }
 
 export interface ArticleListQuery {
@@ -21,10 +22,17 @@ export interface ArticleListQuery {
   sortBy?: 'newest' | 'oldest';
 }
 
-export interface ArticleListResponse {
-  data: Article[];
+export interface PaginationMeta {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface ArticleListResponse {
+  data: Article[];
+  pagination: PaginationMeta;
 }
 
