@@ -1,0 +1,32 @@
+# Cloud Build configuration for Frontend (Next.js) GitHub integration
+# This file is used when Cloud Run builds from GitHub
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/snfy-dashboard:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/snfy-dashboard:latest'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/snfy-dashboard:$SHORT_SHA']
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/snfy-dashboard:latest']
+
+images:
+  - 'gcr.io/$PROJECT_ID/snfy-dashboard:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/snfy-dashboard:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  substitution_option: 'ALLOW_LOOSE'
+
+timeout: '1200s'
+
