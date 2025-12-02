@@ -119,11 +119,11 @@ class ApiClient {
           };
         } else {
           // Fallback for non-standard error formats
-          errorData = {
+        errorData = {
             message: (errorResponse as { message?: string })?.message || response.statusText || 'An error occurred',
             statusCode: (errorResponse as { statusCode?: number })?.statusCode || response.status,
             error: (errorResponse as { error?: string })?.error,
-          };
+        };
         }
       } catch {
         errorData = {
