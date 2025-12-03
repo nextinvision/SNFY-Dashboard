@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_LINKS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { getApiDocsUrl } from "@/lib/api/config";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -110,7 +111,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <div className="border-t border-zinc-200 px-6 py-4 space-y-2">
             <p className="text-xs text-zinc-400">IP restricted access</p>
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/docs`}
+              href={getApiDocsUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors flex items-center gap-1"

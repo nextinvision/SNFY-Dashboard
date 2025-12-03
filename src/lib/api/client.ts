@@ -3,7 +3,9 @@
  * Handles all HTTP requests, authentication, CSRF tokens, and error handling
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { getApiBaseUrl } from './config';
+
+const API_BASE_URL = getApiBaseUrl();
 const API_VERSION = '/api/v1';
 
 export interface ApiError {
