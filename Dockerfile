@@ -16,8 +16,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment variable for build
+# Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED 1
+# Set API URL for build time (can be overridden via build args)
+ARG NEXT_PUBLIC_API_URL=https://api.thebackend.in
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build Next.js application
 RUN npm run build

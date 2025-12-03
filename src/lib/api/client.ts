@@ -5,7 +5,16 @@
 
 import { getApiBaseUrl } from './config';
 
-const API_BASE_URL = getApiBaseUrl();
+// Lazy-load API base URL to avoid build-time errors
+// This will be evaluated when the module is first used (runtime)
+let API_BASE_URL: string | null = null;
+function getApiBaseUrlLazy(): string {
+  if (!API_BASE_URL) {
+    API_BASE_URL = getApiBaseUrl();
+  }
+  return API_BASE_URL;
+}
+
 const API_VERSION = '/api/v1';
 
 export interface ApiError {
@@ -294,5 +303,6 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
+// Initialize API client with lazy-loaded base URL
+export const apiClient = new ApiClient(getApiBaseUrlLazy());
 
