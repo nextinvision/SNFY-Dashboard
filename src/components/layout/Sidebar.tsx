@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { NAV_LINKS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getApiDocsUrl } from "@/lib/api/config";
+import { isAdministrator } from "@/lib/utils/roles";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,15 +26,23 @@ const UsersIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const CustomersIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+);
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard/feeds': FeedIcon,
   '/dashboard/users': UsersIcon,
+  '/dashboard/customers': CustomersIcon,
 };
 
 const MOBILE_BREAKPOINT = 1024;
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const isAdmin = isAdministrator();
 
   // Memoize active link calculation
   const isLinkActive = useCallback((link: typeof NAV_LINKS[0]) => {
@@ -46,6 +55,14 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       onToggle();
     }
   }, [onToggle]);
+
+  // Filter links based on admin access
+  const visibleLinks = NAV_LINKS.filter((link) => {
+    if (link.adminOnly && !isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -72,7 +89,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           "flex flex-1 flex-col gap-1 overflow-y-auto",
           isOpen ? "px-3 pt-4 pb-4" : "px-2 pt-4 pb-4"
         )}>
-          {NAV_LINKS.map((link) => {
+          {visibleLinks.map((link) => {
             const active = isLinkActive(link);
             const Icon = iconMap[link.href] || FeedIcon;
             

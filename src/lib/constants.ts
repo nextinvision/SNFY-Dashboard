@@ -15,6 +15,7 @@ export const INDUSTRIES = [
 export const NAV_LINKS = [
   { href: "/dashboard/feeds", label: "Feeds", exact: false },
   { href: "/dashboard/users", label: "Users", exact: true },
+  { href: "/dashboard/customers", label: "Customers", exact: true, adminOnly: true },
 ];
 
 export const MOCK_USER = {

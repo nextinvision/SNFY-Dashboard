@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { FeedForm } from "@/components/forms/FeedForm";
@@ -12,20 +12,24 @@ import { feedsApi } from "@/lib/api/feeds";
 import type { Feed } from "@/lib/types/feed";
 import { ApiClientError } from "@/lib/api/client";
 
-interface EditFeedPageProps {
-  params: { id: string };
-}
-
-export default function EditFeedPage({ params }: EditFeedPageProps) {
+export default function EditFeedPage() {
   const router = useRouter();
+  const params = useParams();
+  const feedId = params.id as string;
   const [feed, setFeed] = useState<Feed | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFeed = async () => {
+      if (!feedId) {
+        setError("Feed ID is required");
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const data = await feedsApi.getById(params.id);
+        const data = await feedsApi.getById(feedId);
         setFeed(data);
       } catch (err) {
         if (err instanceof ApiClientError && err.statusCode === 404) {
@@ -39,7 +43,7 @@ export default function EditFeedPage({ params }: EditFeedPageProps) {
     };
 
     fetchFeed();
-  }, [params.id]);
+  }, [feedId]);
 
   if (isLoading) {
     return (
