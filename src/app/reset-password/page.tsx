@@ -31,6 +31,16 @@ function ResetPasswordContent() {
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
   useEffect(() => {
+    // Fix URL if it has double slashes (SecurityError prevention)
+    if (typeof window !== 'undefined') {
+      const currentUrl = window.location.href;
+      const cleanUrl = currentUrl.replace(/([^:]\/)\/+/g, '$1');
+      if (currentUrl !== cleanUrl) {
+        // Use replace instead of pushState to avoid SecurityError
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+
     const tokenFromUrl = searchParams.get('token');
     if (!tokenFromUrl) {
       setStatus('error');
