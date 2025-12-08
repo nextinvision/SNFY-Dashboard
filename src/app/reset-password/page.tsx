@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { getApiUrl } from '@/lib/api/config';
 
 interface ResetPasswordResponse {
   message: string;
@@ -95,8 +96,8 @@ function ResetPasswordContent() {
     setPasswordErrors([]);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${baseUrl}/customers/reset-password`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/customers/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,12 +117,25 @@ function ResetPasswordContent() {
       } else {
         setStatus('error');
         const errorData = data as ResetPasswordError;
-        setMessage(errorData.message || errorData.error?.message || 'Password reset failed. Please try again.');
+        // Handle REST-compliant error format: { error: { code, message, details? } }
+        let errorMessage = 'Password reset failed. Please try again.';
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (typeof errorData === 'object' && 'error' in errorData && typeof errorData.error === 'object' && errorData.error !== null && 'message' in errorData.error) {
+          errorMessage = (errorData.error as { message: string }).message;
+        }
+        setMessage(errorMessage);
         setShowModal(true);
       }
-    } catch {
+    } catch (error) {
       setStatus('error');
-      setMessage('An error occurred during password reset. Please try again later.');
+      let errorMessage = 'An error occurred during password reset. Please try again later.';
+      if (error instanceof Error) {
+        errorMessage = `Network error: ${error.message}. Please check your connection and try again.`;
+      }
+      setMessage(errorMessage);
       setShowModal(true);
     }
   }, [token, password, confirmPassword]);

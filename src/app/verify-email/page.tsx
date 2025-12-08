@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
+import { getApiUrl } from '@/lib/api/config';
 
 interface VerifyEmailResponse {
   message: string;
@@ -66,8 +67,8 @@ function VerifyEmailContent() {
     // Call backend API to verify email
     const verifyEmail = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
-        const response = await fetch(`${baseUrl}/customers/verify-email?token=${token}`, {
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/customers/verify-email?token=${token}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
