@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { IndustryMultiSelect } from './IndustryMultiSelect';
 import { feedsApi } from '@/lib/api/feeds';
-import { industriesApi } from '@/lib/api/industries';
 import type { Industry } from '@/lib/types/industry';
 import { ApiClientError } from '@/lib/api/client';
 
@@ -23,6 +23,11 @@ export function BulkFeedImport({ onClose }: BulkFeedImportProps) {
   const router = useRouter();
   const [textInput, setTextInput] = useState('');
   const [defaultIndustries, setDefaultIndustries] = useState<Industry[]>([]);
+  // Default contact fields (applied to all feeds)
+  const [defaultPublisherWebsite, setDefaultPublisherWebsite] = useState('');
+  const [defaultContactEmail, setDefaultContactEmail] = useState('');
+  const [defaultContactPhone, setDefaultContactPhone] = useState('');
+  const [defaultContactPageUrl, setDefaultContactPageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{
@@ -97,6 +102,21 @@ export function BulkFeedImport({ onClose }: BulkFeedImportProps) {
       return;
     }
 
+    // Validate that at least one contact method is provided
+    const hasContactInfo =
+      (defaultPublisherWebsite && defaultPublisherWebsite.trim() !== '') ||
+      (defaultContactEmail && defaultContactEmail.trim() !== '') ||
+      (defaultContactPhone && defaultContactPhone.trim() !== '') ||
+      (defaultContactPageUrl && defaultContactPageUrl.trim() !== '');
+
+    if (!hasContactInfo) {
+      setError(
+        'At least one contact method must be provided: Publisher Website, Contact Email, Contact Phone, or Contact Page URL',
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const parsedFeeds = parseFeeds(textInput);
 
@@ -110,6 +130,26 @@ export function BulkFeedImport({ onClose }: BulkFeedImportProps) {
 
       const industryIds = defaultIndustries.map((ind) => ind.id);
 
+      // Prepare contact fields - only include non-empty values
+      const contactFields: {
+        publisherWebsite?: string;
+        contactEmail?: string;
+        contactPhone?: string;
+        contactPageUrl?: string;
+      } = {};
+      if (defaultPublisherWebsite && defaultPublisherWebsite.trim() !== '') {
+        contactFields.publisherWebsite = defaultPublisherWebsite.trim();
+      }
+      if (defaultContactEmail && defaultContactEmail.trim() !== '') {
+        contactFields.contactEmail = defaultContactEmail.trim();
+      }
+      if (defaultContactPhone && defaultContactPhone.trim() !== '') {
+        contactFields.contactPhone = defaultContactPhone.trim();
+      }
+      if (defaultContactPageUrl && defaultContactPageUrl.trim() !== '') {
+        contactFields.contactPageUrl = defaultContactPageUrl.trim();
+      }
+
       const bulkData = parsedFeeds.map((feed) => ({
         name: feed.name,
         url: feed.url,
@@ -118,6 +158,7 @@ export function BulkFeedImport({ onClose }: BulkFeedImportProps) {
         autoUpdate: true,
         fullText: false,
         enabled: true,
+        ...contactFields,
       }));
 
       const result = await feedsApi.bulkCreate(bulkData);
@@ -125,11 +166,13 @@ export function BulkFeedImport({ onClose }: BulkFeedImportProps) {
       setSuccess({
         created: result.created,
         failed: result.failed,
-        failedItems: result.results.failed.map((f: any) => ({
-          name: f.feed.name || f.feed.url,
-          url: f.feed.url,
-          error: f.error,
-        })),
+        failedItems: result.results.failed.map(
+          (f: { feed: { name?: string; url: string }; error: string }) => ({
+            name: f.feed.name || f.feed.url,
+            url: f.feed.url,
+            error: f.error,
+          }),
+        ),
       });
 
       if (result.created > 0) {
@@ -185,6 +228,47 @@ The Verge|https://www.theverge.com/rss/index.xml`}
         <p className="mt-1 text-xs text-zinc-400">
           These industries will be assigned to all imported feeds
         </p>
+      </div>
+
+      {/* Contact Method Fields Section */}
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+          Default Contact Information
+          <span className="ml-1 text-red-500">*</span>
+        </h3>
+        <p className="mb-4 text-xs text-zinc-600">
+          At least one contact method is required (applied to all feeds - Google News Policy requirement)
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input
+            label="Publisher Website"
+            placeholder="https://example.com"
+            type="url"
+            value={defaultPublisherWebsite}
+            onChange={(event) => setDefaultPublisherWebsite(event.target.value)}
+          />
+          <Input
+            label="Contact Email"
+            placeholder="contact@example.com"
+            type="email"
+            value={defaultContactEmail}
+            onChange={(event) => setDefaultContactEmail(event.target.value)}
+          />
+          <Input
+            label="Contact Phone"
+            placeholder="+1-555-123-4567"
+            type="tel"
+            value={defaultContactPhone}
+            onChange={(event) => setDefaultContactPhone(event.target.value)}
+          />
+          <Input
+            label="Contact Page URL"
+            placeholder="https://example.com/contact"
+            type="url"
+            value={defaultContactPageUrl}
+            onChange={(event) => setDefaultContactPageUrl(event.target.value)}
+          />
+        </div>
       </div>
 
       {error && (

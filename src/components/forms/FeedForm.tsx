@@ -35,6 +35,19 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
   const [enabled, setEnabled] = useState(
     initialValues?.status !== "disabled",
   );
+  // Contact method fields (Google News Policy requirement - at least one required)
+  const [publisherWebsite, setPublisherWebsite] = useState(
+    initialValues?.publisherWebsite ?? "",
+  );
+  const [contactEmail, setContactEmail] = useState(
+    initialValues?.contactEmail ?? "",
+  );
+  const [contactPhone, setContactPhone] = useState(
+    initialValues?.contactPhone ?? "",
+  );
+  const [contactPageUrl, setContactPageUrl] = useState(
+    initialValues?.contactPageUrl ?? "",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +57,21 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
     setError(null);
 
     try {
+      // Validate that at least one contact method is provided
+      const hasContactInfo =
+        (publisherWebsite && publisherWebsite.trim() !== "") ||
+        (contactEmail && contactEmail.trim() !== "") ||
+        (contactPhone && contactPhone.trim() !== "") ||
+        (contactPageUrl && contactPageUrl.trim() !== "");
+
+      if (!hasContactInfo) {
+        setError(
+          "At least one contact method must be provided: Publisher Website, Contact Email, Contact Phone, or Contact Page URL",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       // Upload logo file if provided
       let finalLogoUrl = logoUrl;
       if (logoFile) {
@@ -54,6 +82,26 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
       // Prepare payload - industries should be array of IDs
       const industryIds = industries.map((ind) => ind.id);
 
+      // Prepare contact fields - only include non-empty values
+      const contactFields: {
+        publisherWebsite?: string;
+        contactEmail?: string;
+        contactPhone?: string;
+        contactPageUrl?: string;
+      } = {};
+      if (publisherWebsite && publisherWebsite.trim() !== "") {
+        contactFields.publisherWebsite = publisherWebsite.trim();
+      }
+      if (contactEmail && contactEmail.trim() !== "") {
+        contactFields.contactEmail = contactEmail.trim();
+      }
+      if (contactPhone && contactPhone.trim() !== "") {
+        contactFields.contactPhone = contactPhone.trim();
+      }
+      if (contactPageUrl && contactPageUrl.trim() !== "") {
+        contactFields.contactPageUrl = contactPageUrl.trim();
+      }
+
       if (mode === "create") {
         await feedsApi.create({
           name,
@@ -63,6 +111,7 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
           autoUpdate,
           fullText,
           enabled,
+          ...contactFields,
         });
       } else if (feedId) {
         await feedsApi.update(feedId, {
@@ -73,6 +122,7 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
           autoUpdate,
           fullText,
           enabled,
+          ...contactFields,
         });
       }
 
@@ -119,6 +169,48 @@ export function FeedForm({ mode, initialValues, feedId }: FeedFormProps) {
         onChange={(file) => setLogoFile(file)}
       />
       <IndustryMultiSelect selected={industries} onChange={setIndustries} />
+      
+      {/* Contact Method Fields Section */}
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+          Contact Information
+          <span className="ml-1 text-red-500">*</span>
+        </h3>
+        <p className="mb-4 text-xs text-zinc-600">
+          At least one contact method is required (Google News Policy requirement)
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input
+            label="Publisher Website"
+            placeholder="https://example.com"
+            type="url"
+            value={publisherWebsite}
+            onChange={(event) => setPublisherWebsite(event.target.value)}
+          />
+          <Input
+            label="Contact Email"
+            placeholder="contact@example.com"
+            type="email"
+            value={contactEmail}
+            onChange={(event) => setContactEmail(event.target.value)}
+          />
+          <Input
+            label="Contact Phone"
+            placeholder="+1-555-123-4567"
+            type="tel"
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+          />
+          <Input
+            label="Contact Page URL"
+            placeholder="https://example.com/contact"
+            type="url"
+            value={contactPageUrl}
+            onChange={(event) => setContactPageUrl(event.target.value)}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Toggle
           label="Enable auto-update"

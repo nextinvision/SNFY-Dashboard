@@ -12,5 +12,10 @@ export interface Feed {
   fullText: boolean;
   status: FeedStatus;
   lastUpdated: string;
+  // Contact method fields (Google News Policy requirement - at least one required)
+  publisherWebsite?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactPageUrl?: string;
 }
 

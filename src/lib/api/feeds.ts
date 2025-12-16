@@ -13,6 +13,11 @@ export interface CreateFeedRequest {
   autoUpdate?: boolean;
   fullText?: boolean;
   enabled?: boolean;
+  // Contact method fields (Google News Policy requirement - at least one required)
+  publisherWebsite?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactPageUrl?: string;
 }
 
 export interface UpdateFeedRequest extends Partial<CreateFeedRequest> {}
@@ -82,6 +87,11 @@ function transformFeed(backendFeed: any): Feed {
     fullText: backendFeed.fullText ?? false,
     status: backendFeed.enabled ? 'enabled' : 'disabled',
     lastUpdated: backendFeed.lastUpdatedAt || backendFeed.updatedAt || backendFeed.createdAt,
+    // Contact method fields
+    publisherWebsite: backendFeed.publisherWebsite || undefined,
+    contactEmail: backendFeed.contactEmail || undefined,
+    contactPhone: backendFeed.contactPhone || undefined,
+    contactPageUrl: backendFeed.contactPageUrl || undefined,
   };
 }
 
@@ -148,6 +158,11 @@ export const feedsApi = {
       autoUpdate?: boolean;
       fullText?: boolean;
       enabled?: boolean;
+      // Contact method fields (at least one required)
+      publisherWebsite?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+      contactPageUrl?: string;
     }>,
   ): Promise<{
     success: boolean;
