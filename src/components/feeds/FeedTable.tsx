@@ -119,15 +119,23 @@ export function FeedTable({ initialFeeds = [], initialTotal = 0 }: FeedTableProp
       
       if (result.success) {
         setError(null);
-        // Refresh the feed list to update lastUpdated timestamp
-        const response = await feedsApi.list({
-          page,
-          limit: perPage,
-          search: search || undefined,
-          sortBy: sortOrder,
-        });
-        setFeeds(response.data);
-        setTotal(response.pagination.total);
+        // Fetch only the updated feed to get the latest lastUpdated timestamp
+        // This is more efficient than refreshing the entire list
+        try {
+          const updatedFeed = await feedsApi.getById(feed.id);
+          // Update only the refreshed feed in the current list
+          // This preserves pagination, search, and sort state
+          setFeeds((prevFeeds) =>
+            prevFeeds.map((f) => (f.id === feed.id ? updatedFeed : f))
+          );
+        } catch (fetchError) {
+          // If feed fetch fails (e.g., feed was deleted), log but don't fail the refresh
+          // The refresh operation itself was successful
+          console.warn(
+            `Failed to fetch updated feed ${feed.id} after refresh:`,
+            fetchError instanceof Error ? fetchError.message : "Unknown error"
+          );
+        }
       } else {
         setError(
           result.error || `Failed to refresh feed: ${result.articlesCreated} articles created, ${result.articlesSkipped} skipped`
